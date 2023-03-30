@@ -263,6 +263,20 @@ optimize table classicmodels.customers;
 -- (source: https://github.com/amyasnov/stepic-db-intro/tree/2650f9a7f9c72e1219ea93cb4c4e410cca046e54/test)
 
 -- Look at table relationships in EER Diagram
+-- DO YOUR COUNTS BEFORE YOU START WORKING ON ANY DATABASE
+select count(*) from library_simple.author; -- 86
+select count(*) from library_simple.author_has_book; -- 596
+select count(*) from library_simple.book; -- 322
+select count(*) from library_simple.category; -- 184
+select count(*) from library_simple.category_has_book; -- 556
+select count(*) from library_simple.copy; -- 1121
+select count(*) from library_simple.issuance; -- 2000
+select count(*) from library_simple.reader; -- 241
+
+-- or 
+SELECT table_schema, table_name, table_rows
+FROM INFORMATION_SCHEMA.tables
+WHERE TABLE_SCHEMA = 'library_simple'; 
 
 -- Write sql 
 --	1. What is the first name of the author with the last name Swanson?

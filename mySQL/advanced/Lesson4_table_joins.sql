@@ -1,54 +1,4 @@
 
--- Lesson #4 Table Joins
--- Homework #3 Answers
--- Part 1 - mywork database
-
--- 1. Add column 'country' to dept table
-select * from mywork.dept;
-alter table mywork.dept add column country varchar (10);
-
--- 2. Rename column 'loc' to 'city'
-alter table mywork.dept rename column loc to city;
--- or this: alter table mywork.dept change loc city varchar (15);
-
--- 3. Add three more departments: HR, Engineering, Marketing
-insert into mywork.dept (deptno, dname, city)
-values 
-(5, 'HR', 'SAN FRANCISCO'),
-(6, 'ENGINEERING','NEW YORK'),
-(7, 'MARKETING', 'SAN DIEGO');
-
-select * from mywork.dept;
-
--- 4. Write sql statement to show which department is in Atlanta
-select deptno, dname, city
-from mywork.dept 
-where city = 'ATLANTA';
-
--- Part 2  - library_simple database
--- DO YOUR COUNTS BEFORE YOU START WORKING ON ANY DATABASE
-select count(*) from library_simple.author; -- 86
-select count(*) from library_simple.author_has_book; -- 596
-select count(*) from library_simple.book; -- 322
-select count(*) from library_simple.category; -- 184
-select count(*) from library_simple.category_has_book; -- 556
-select count(*) from library_simple.copy; -- 1121
-select count(*) from library_simple.issuance; -- 2000
-select count(*) from library_simple.reader; -- 241
-
--- or 
-SELECT table_schema, table_name, table_rows
-FROM INFORMATION_SCHEMA.tables
-WHERE TABLE_SCHEMA = 'library_simple'; 
-
--- 1. What is the first name of the author with the last name Swanson?
-select * from library_simple.author where last_name = 'Swanson';
--- 2. How many pages are in Men Without Fear book?
-select name, page_num from library_simple.book where name = 'Men Without Fear';
--- 3. Show all book categories that start with with letter 'W'
-select * from library_simple.category where `name` like 'W%';
-
--- -------------------------- End of Homework#3 ----------------------
 -- -------------------------- Lesson #4 Table Joins ------------------
 -- inner join
 -- left join
@@ -179,31 +129,110 @@ on cust.customerNumber = pay.customerNumber ;
 -- (write sql for #6, 8, 9, 10, 11, 14, 16, 17, 21) -- easy questions
 
 -- 1.how many vendors, product lines, and products exist in the database?
+select count(distinct(productVendor)) as VendorsNum, count(distinct(productLine)) as ProductLinesNum, count(distinct(productName)) as ProductsNum 
+from classicmodels.products;
+
 -- 2.what is the average price (buy price, MSRP) per vendor?
+select productVendor, avg(buyPrice) as avgPrice, avg(MSRP) as avgMSRP from classicmodels.products group by productVendor;
+
 -- 3.what is the average price (buy price, MSRP) per customer?
+
 -- 4.what product was sold the most?
+select productName, max(quantityOrdered) as max from classicmodels.orderdetails
+inner join classicmodels.products on classicmodels.orderdetails.productCode=classicmodels.products.productCode
+group by productName order by max desc limit 1;
+
 -- 5.how much money was made between buyPrice and MSRP?
+ALTER TABLE classicmodels.products
+ADD COLUMN calc_val DECIMAL(10,2) 
+GENERATED ALWAYS AS (classicmodels.products.MSRP - classicmodels.products.buyPrice) virtual;
+
+select * from classicmodels.products;
+
+ALTER TABLE classicmodels.products
+drop COLUMN calc_val;
+
 -- 6.which vendor sells 1966 Shelby Cobra?
+select productVendor, productName from classicmodels.products where productName like '%1966 Shelby Cobra%';
+
 -- 7.which vendor sells more products?
+select productVendor, count(productName) as num from classicmodels.products group by productVendor  order by num desc limit 1;
+
 -- 8.which product is the most and least expensive?
+select productName, max(msrp) as max_price from classicmodels.products group by productName order by max_price desc limit 1;
+select productName, min(msrp) as min_price from classicmodels.products group by productName order by min_price limit 1;
+SELECT max(msrp) as mostexp, min(msrp) as leastexp FROM classicmodels.products;
+
 -- 9.which product has the most quantityInStock?
+select productName, quantityInStock as max from classicmodels.products order by max desc limit 1;
+
 -- 10.list all products that have quantity in stock less than 20
+select productName, quantityInStock from classicmodels.products where quantityInStock <20;
+
 -- 11.which customer has the highest and lowest credit limit?
+select customerNumber, creditLimit as minCreditLimit from classicmodels.customers order by minCreditLimit limit 1;
+select customerNumber, creditLimit as maxCreditLimit from classicmodels.customers order by maxCreditLimit desc limit 1;
+
 -- 12.rank customers by credit limit
+select customerName, creditLimit from classicmodels.customers order by creditLimit desc;
+
 -- 13.list the most sold product by city
+
+
 -- 14.customers in what city are the most profitable to the company?
+select  city, amount from classicmodels.customers
+inner join classicmodels.payments on classicmodels.payments.customerNumber=classicmodels.customers.customerNumber
+order by amount desc limit 1;
+
 -- 15.what is the average number of orders per customer?
+select customerNumber, count(orderNumber) as numberOfOrders from classicmodels.orders group by customerNumber;
+
 -- 16.who is the best customer?
+select  customerName, amount from classicmodels.customers
+inner join classicmodels.payments on classicmodels.payments.customerNumber=classicmodels.customers.customerNumber
+order by amount desc limit 1;
+
 -- 17.customers without payment
+select  c.customerNumber, c.customerName, p.amount from classicmodels.customers c
+left join classicmodels.payments p on p.customerNumber=c.customerNumber where p.amount is null;
+
 -- 18.what is the average number of days between the order date and ship date?
+
 -- 19.sales by year
+select year(paymentDate) as year, sum(amount) as salesSum from classicmodels.payments group by year order by salesSum desc; 
+
 -- 20.how many orders are not shipped?
+select count(*) from classicmodels.orders where status !='Shipped'; 
+
 -- 21.list all employees by their (full name: first + last) in alpabetical order
+SELECT CONCAT(lastName, ' ', firstName) as fullName FROM classicmodels.employees order by fullName;
+
 -- 22.list of employees  by how much they sold in 2003?
+
 -- 23.which city has the most number of employees?
+select city, count(employeeNumber) as max from classicmodels.employees
+inner join classicmodels.offices on classicmodels.employees.officeCode=classicmodels.offices.officeCode group by city order by max desc limit 1;
+
 -- 24.which office has the biggest sales?
 
 -- Part #2  -- library_simple database
 -- 1.find all information (query each table seporately for book_id = 252)
+select * from library_simple.author_has_book where book_id=252; 
+select * from library_simple.author where id in (750,770,794);
+select * from library_simple.book where id=252;
+select * from library_simple.copy f where book_id = 252;
+select * from library_simple.issuance g where copy_id = 252;
+select * from library_simple.category_has_book d where book_id = 252;
+select * from library_simple.category e where id in (46,142);
+select * from library_simple.reader h where id = 234;
+select * from library_simple.issuance g where reader_id = 234;
+
 -- 2.which books did Van Parks write?
+select `name` from library_simple.author 
+inner join library_simple.author_has_book on library_simple.author.id=library_simple.author_has_book.author_id
+inner join library_simple.book on library_simple.author_has_book.book_id=library_simple.book.id where first_name='Van' and last_name='Parks';
+
 -- 3.which books where published in 2003?
+select * from library_simple.author 
+inner join library_simple.author_has_book on library_simple.author.id=library_simple.author_has_book.author_id
+inner join library_simple.book on library_simple.author_has_book.book_id=library_simple.book.id where pub_year=2003;

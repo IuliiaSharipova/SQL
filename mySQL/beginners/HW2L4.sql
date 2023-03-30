@@ -38,6 +38,7 @@ select * from chinook.playlisttrack;
 select PlaylistId, count(TrackId) as num_tracks from chinook.playlisttrack where PlaylistId>15 group by PlaylistId;
 
 -- 12. Найти все ID счет-фактур, в которых количество товаров больше или равно 6 и меньше или равно 9.
-select InvoiceId, sum(Quantity) as num from chinook.invoiceline group by InvoiceId having num between 6 and 9;
 select * from chinook.invoiceline;
+select InvoiceId, sum(Quantity) as num from chinook.invoiceline group by InvoiceId having num between 6 and 9;
+
 
