@@ -136,11 +136,21 @@ from classicmodels.products;
 select productVendor, avg(buyPrice) as avgPrice, avg(MSRP) as avgMSRP from classicmodels.products group by productVendor;
 
 -- 3.what is the average price (buy price, MSRP) per customer?
+select orders.customerNumber, avg(det.priceEach) as avgPrice, avg(prod.MSRP) as avgMSRP 
+from classicmodels.orders orders
+join classicmodels.orderdetails det on orders.orderNumber=det.orderNumber
+join classicmodels.products prod on det.productCode=prod.productCode
+group by orders.customerNumber
+order by orders.customerNumber;
 
 -- 4.what product was sold the most?
-select productName, max(quantityOrdered) as max from classicmodels.orderdetails
-inner join classicmodels.products on classicmodels.orderdetails.productCode=classicmodels.products.productCode
-group by productName order by max desc limit 1;
+select prod.productName, 
+count(prod.productCode) as prod_cnt,
+sum(det.quantityOrdered) as quantity_ordered_sum,
+max(det.quantityOrdered) as order_cnt 
+from classicmodels.orderdetails det
+inner join classicmodels.products prod on det.productCode=prod.productCode
+group by prod.productCode order by prod_cnt desc limit 1;
 
 -- 5.how much money was made between buyPrice and MSRP?
 ALTER TABLE classicmodels.products
@@ -152,15 +162,27 @@ select * from classicmodels.products;
 ALTER TABLE classicmodels.products
 drop COLUMN calc_val;
 
+-- OR with sum:
+select 
+sum(prod.msrp*det.quantityOrdered) as msrp_sales,
+sum(prod.buyPrice*det.quantityOrdered) as buyPrice_sales,
+sum(prod.msrp*det.quantityOrdered)-sum(prod.buyPrice*det.quantityOrdered) as diff_in_sales
+from classicmodels.products prod
+join classicmodels.orderdetails det on prod.productCode=det.productCode;
+ 
 -- 6.which vendor sells 1966 Shelby Cobra?
 select productVendor, productName from classicmodels.products where productName like '%1966 Shelby Cobra%';
 
 -- 7.which vendor sells more products?
-select productVendor, count(productName) as num from classicmodels.products group by productVendor  order by num desc limit 1;
+select productVendor, count(det.productCode) as quantity 
+from classicmodels.products prod
+join classicmodels.orderdetails det on prod.productCode=det.productCode
+group by prod.productVendor  order by quantity desc limit 1;
 
 -- 8.which product is the most and least expensive?
-select productName, max(msrp) as max_price from classicmodels.products group by productName order by max_price desc limit 1;
-select productName, min(msrp) as min_price from classicmodels.products group by productName order by min_price limit 1;
+(select productName, max(msrp) as max_price from classicmodels.products group by productName order by max_price desc limit 1)
+union
+(select productName, min(msrp) as min_price from classicmodels.products group by productName order by min_price limit 1);
 SELECT max(msrp) as mostexp, min(msrp) as leastexp FROM classicmodels.products;
 
 -- 9.which product has the most quantityInStock?
@@ -170,14 +192,39 @@ select productName, quantityInStock as max from classicmodels.products order by 
 select productName, quantityInStock from classicmodels.products where quantityInStock <20;
 
 -- 11.which customer has the highest and lowest credit limit?
-select customerNumber, creditLimit as minCreditLimit from classicmodels.customers order by minCreditLimit limit 1;
-select customerNumber, creditLimit as maxCreditLimit from classicmodels.customers order by maxCreditLimit desc limit 1;
+(select customerNumber, creditLimit as minCreditLimit from classicmodels.customers order by minCreditLimit limit 1)
+union
+(select customerNumber, creditLimit as maxCreditLimit from classicmodels.customers order by maxCreditLimit desc limit 1);
 
 -- 12.rank customers by credit limit
-select customerName, creditLimit from classicmodels.customers order by creditLimit desc;
+select customerName, creditLimit, RANK() OVER (ORDER BY creditLimit DESC) as `rank` from classicmodels.customers;
 
--- 13.list the most sold product by city
+-- 13.
+-- #1 list the most sold product by city
+WITH a as (
+SELECT c.City, od.productCode, sum(quantityOrdered) as quantitySold,
+(ROW_NUMBER() OVER (PARTITION BY c.City ORDER BY sum(quantityOrdered) DESC)) as rowNum
+FROM classicmodels.orderDetails od
+JOIN classicmodels.orders o on o.orderNumber = od.orderNumber
+JOIN classicmodels.customers c on c.customerNumber = o.customerNumber
+GROUP BY c.City, od.productCode
+) 
+SELECT a.City, a.productCode, a.quantitySold
+FROM a
+WHERE rowNum = 1;
 
+-- #2 list the most sold product by city
+select * from (
+select  oc.city, p.productname, SUM(od.quantityOrdered), COUNT(p.productcode),
+RANK() OVER (PARTITION BY oc.city ORDER BY sum(od.quantityOrdered) DESC)  as myrank
+from classicmodels.offices oc 
+join classicmodels.employees e on oc.officecode=e.officecode
+join classicmodels.customers c on c.salesrepemployeenumber=e.employeenumber
+join classicmodels.orders o on o.customernumber=c.customernumber
+join classicmodels.orderdetails od on o.ordernumber=od.ordernumber
+join classicmodels.products p on p.productcode=od.productcode
+group by  oc.city, p.productname) a
+where myrank = 1 ;
 
 -- 14.customers in what city are the most profitable to the company?
 select  city, amount from classicmodels.customers
@@ -186,6 +233,8 @@ order by amount desc limit 1;
 
 -- 15.what is the average number of orders per customer?
 select customerNumber, count(orderNumber) as numberOfOrders from classicmodels.orders group by customerNumber;
+SELECT (COUNT(orderNumber)/COUNT(distinct customerNumber)) as avgPerCust
+FROM classicmodels.orders;
 
 -- 16.who is the best customer?
 select  customerName, amount from classicmodels.customers
@@ -197,23 +246,38 @@ select  c.customerNumber, c.customerName, p.amount from classicmodels.customers 
 left join classicmodels.payments p on p.customerNumber=c.customerNumber where p.amount is null;
 
 -- 18.what is the average number of days between the order date and ship date?
+select round(avg(datediff(shippedDate,orderDate)),0) as avgDateNumber from classicmodels.orders;
 
 -- 19.sales by year
 select year(paymentDate) as year, sum(amount) as salesSum from classicmodels.payments group by year order by salesSum desc; 
 
 -- 20.how many orders are not shipped?
-select count(*) from classicmodels.orders where status !='Shipped'; 
+-- where status <> 'Shipped'; -- wrong because there customers that are in 'Disputed' status
+select count(*) from classicmodels.orders where shippeddate is null; 
 
 -- 21.list all employees by their (full name: first + last) in alpabetical order
 SELECT CONCAT(lastName, ' ', firstName) as fullName FROM classicmodels.employees order by fullName;
 
 -- 22.list of employees  by how much they sold in 2003?
+select e.employeeNumber, p.amount, year(p.paymentDate) as year from classicmodels.employees e
+inner join classicmodels.customers c on c.salesRepEmployeeNumber=e.employeeNumber
+inner join classicmodels.payments p on p.customerNumber=c.customerNumber
+group by e.employeeNumber, p.amount, year
+having year='2003'
+order by p.amount desc;
 
 -- 23.which city has the most number of employees?
 select city, count(employeeNumber) as max from classicmodels.employees
 inner join classicmodels.offices on classicmodels.employees.officeCode=classicmodels.offices.officeCode group by city order by max desc limit 1;
 
 -- 24.which office has the biggest sales?
+select o.officeCode, sum(p.amount)  as salesAmount from offices o
+inner join classicmodels.employees e on o.officeCode=e.officeCode
+inner join classicmodels.customers c on c.salesRepEmployeeNumber=e.employeeNumber
+inner join classicmodels.payments p on p.customerNumber=c.customerNumber
+group by o.officeCode
+order by salesAmount desc
+limit 1;
 
 -- Part #2  -- library_simple database
 -- 1.find all information (query each table seporately for book_id = 252)
